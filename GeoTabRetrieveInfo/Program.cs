@@ -14,41 +14,50 @@ namespace GeoTabRetrieveInfo
     {
         static async Task Main(string[] args)
         {
-            var apiGenerated = await ValidateInputParametersAndAutentication(args);
-            while (apiGenerated == null)
+            try 
             {
-                Console.WriteLine("\nPress Enter to exit or any other key to try again!");
-                if (Console.ReadKey(true).Key == ConsoleKey.Enter)
+                var apiGenerated = await ValidateInputParametersAndAutentication(args);
+                while (apiGenerated == null)
                 {
-                    return;
+                    Console.WriteLine("\nPress Enter to exit or any other key to try again!");
+                    if (Console.ReadKey(true).Key == ConsoleKey.Enter)
+                    {
+                        return;
+                    }
+                    apiGenerated = await ValidateInputParametersAndAutentication(args);
                 }
-                apiGenerated = await ValidateInputParametersAndAutentication(args);
-            }
 
-            Console.WriteLine(" Retrieving devices...");
-            var devices = await apiGenerated.CallAsync<IList<Device>>("Get", typeof(Device)) ?? [];            
+                Console.WriteLine(" Retrieving devices...");
+                var devices = await apiGenerated.CallAsync<IList<Device>>("Get", typeof(Device)) ?? [];
 
-            Console.WriteLine(" Generating tasks for devices info...");
-            var tasks = new ConcurrentBag<(string? DeviceId, Task VehicleTask)>();
-            var cancellationToken = new CancellationTokenSource();
-            var token = cancellationToken.Token;
-            foreach (var device in devices)
-            {
-                var task = Task.Run(async () =>
+                Console.WriteLine(" Generating tasks for devices info...");
+                var tasks = new ConcurrentBag<(string? DeviceId, Task VehicleTask)>();
+                var cancellationToken = new CancellationTokenSource();
+                var token = cancellationToken.Token;
+                foreach (var device in devices)
                 {
-                    while(!token.IsCancellationRequested)
-                    {                        
-                        var vehicleInfo = await RetrieveVehicleInfo(device, apiGenerated, token);
-                        WriteInfoToCsv(vehicleInfo);
-                        await Task.Delay(20000);
-                    }                    
-                }, token);
-                tasks.Add((device.Id?.ToString(), task));
-                Console.WriteLine($"Retrieving Information Task for Device [{device.Name}]");
-            }
+                    var task = Task.Run(async () =>
+                    {
+                        while (!token.IsCancellationRequested)
+                        {
+                            var vehicleInfo = await RetrieveVehicleInfo(device, apiGenerated, token);
+                            WriteInfoToCsv(vehicleInfo);
+                            await Task.Delay(20000);
+                        }
+                    }, token);
+                    tasks.Add((device.Id?.ToString(), task));
+                    Console.WriteLine($"Retrieving Information Task for Device [{device.Name}]");
+                }
 
-            ReceiveRequestForCancelling(tasks, cancellationToken);
-            Console.ReadLine();
+                ReceiveRequestForCancelling(tasks, cancellationToken);
+                Console.ReadLine();
+            } 
+            catch (InvalidOperationException ex)
+            {
+                Console.WriteLine($"Problems during execution: {ex.StackTrace}");
+                Console.WriteLine("Press any key to exit...");
+                Console.ReadKey(true);
+            }
         }
 
         private static async Task<API?> ValidateInputParametersAndAutentication(string[] args)
@@ -184,7 +193,7 @@ namespace GeoTabRetrieveInfo
                 var taskList = tasks.Select(x=> x.VehicleTask).ToList();
                 await Task.WhenAll(taskList).ContinueWith(x => 
                 {
-                    Console.WriteLine("Tasks Cancelled! Press enter to exit...");
+                    Console.WriteLine("Tasks Cancelled!\nPress enter to exit...");
                 });
             }
             catch (OperationCanceledException ex)
