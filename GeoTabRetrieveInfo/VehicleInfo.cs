@@ -1,0 +1,21 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace GeoTabRetrieveInfo
+{
+    public class VehicleInfo
+    {
+        public string Id { get; set; } = Guid.NewGuid().ToString();
+        public DateTime? Timestamp { get; set; }
+        public string? Name { get; set; }
+        public string? VIN {  get; set; }
+        public double Latitude { get; set; }
+        public double Longitude { get; set; }
+        public double Odometer { get; set; }
+        public string InfoToString => @$"{Id},{Name},{VIN},{Latitude},{Longitude},{Odometer},{Timestamp}";
+        
+    }
+}
